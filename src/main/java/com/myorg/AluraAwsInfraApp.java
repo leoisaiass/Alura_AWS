@@ -15,6 +15,7 @@ public class AluraAwsInfraApp {
 
         AluraServiceStack serviceStack = new AluraServiceStack(app, "Service", clusterStack.getCluster());
         serviceStack.addDependency(clusterStack);
+        serviceStack.addDependency(rdsStack);
         app.synth();
     }
 }
