@@ -4,6 +4,8 @@ import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ec2.Vpc;
+import software.amazon.awscdk.services.ecr.IRepository;
+import software.amazon.awscdk.services.ecr.Repository;
 import software.amazon.awscdk.services.ecs.Cluster;
 import software.amazon.awscdk.services.ecs.ContainerImage;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
@@ -32,6 +34,9 @@ public class AluraServiceStack extends Stack {
         // Adiciona a senha do banco de dados ao mapa, importando o valor de uma variável
         autenticacao.put("SPRING_DATASOURCE_PASSWORD", Fn.importValue("pedidos-db-senha"));
 
+        // Cria uma instância do repositório ECR a partir do nome do repositório especificado, permitindo que a aplicação acesse a imagem armazenada de forma privada.
+        IRepository iRepository = Repository.fromRepositoryName(this, "repositorio", "img-pedidos-ms");
+
         // Criando um serviço Fargate balanceado por load balancer
         ApplicationLoadBalancedFargateService.Builder.create(this, "AluraService")
                 .serviceName("alura-service-ola") // Nome do serviço
@@ -42,7 +47,8 @@ public class AluraServiceStack extends Stack {
                 .assignPublicIp(true)               // Atribui um IP público ao serviço
                 .taskImageOptions(
                         ApplicationLoadBalancedTaskImageOptions.builder()
-                                .image(ContainerImage.fromRegistry("jacquelineoliveira/ola:1.0")) // Imagem do container
+//                                .image(ContainerImage.fromRegistry("leoisaiass/pedidos-ms")) // Imagem do container
+                                .image(ContainerImage.fromEcrRepository(iRepository))
                                 .containerPort(8080) // Porta do container
                                 .containerName("app_ola") // Nome do container
                                 .environment(autenticacao) // Configura as variáveis de ambiente da aplicação com as informações de autenticação
