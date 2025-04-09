@@ -1,16 +1,11 @@
 package com.myorg;
 
-import software.amazon.awscdk.Fn;
-import software.amazon.awscdk.RemovalPolicy;
-import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.*;
+import software.amazon.awscdk.services.applicationautoscaling.EnableScalingProps;
 import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ecr.IRepository;
 import software.amazon.awscdk.services.ecr.Repository;
-import software.amazon.awscdk.services.ecs.AwsLogDriverProps;
-import software.amazon.awscdk.services.ecs.Cluster;
-import software.amazon.awscdk.services.ecs.ContainerImage;
-import software.amazon.awscdk.services.ecs.LogDriver;
+import software.amazon.awscdk.services.ecs.*;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedTaskImageOptions;
 import software.amazon.awscdk.services.logs.LogGroup;
@@ -42,7 +37,7 @@ public class AluraServiceStack extends Stack {
         IRepository iRepository = Repository.fromRepositoryName(this, "repositorio", "img-pedidos-ms");
 
         // Criando um serviço Fargate balanceado por load balancer
-        ApplicationLoadBalancedFargateService.Builder.create(this, "AluraService")
+        ApplicationLoadBalancedFargateService aluraService = ApplicationLoadBalancedFargateService.Builder.create(this, "AluraService")
                 .serviceName("alura-service-ola") // Nome do serviço
                 .cluster(cluster)                   // Referência ao cluster criado
                 .cpu(512)                           // Alocação de CPU para o serviço
@@ -67,5 +62,24 @@ public class AluraServiceStack extends Stack {
                 .memoryLimitMiB(1024)               // Limite de memória para o serviço
                 .publicLoadBalancer(true)           // Define que o load balancer é público
                 .build();                           // Constrói o serviço
+
+        ScalableTaskCount scalableTarget = aluraService.getService().autoScaleTaskCount(EnableScalingProps.builder() // Cria um objeto ScalableTaskCount para gerenciar o auto scaling do serviço
+                .minCapacity(1) // Define a capacidade mínima de instâncias como 1, garantindo que sempre haja pelo menos uma instância em execução
+                .maxCapacity(20) // Define a capacidade máxima de instâncias como 20, permitindo que o serviço escale até esse limite
+                .build()); // Constrói o objeto EnableScalingProps com as configurações de capacidade mínima e máxima
+
+        scalableTarget.scaleOnCpuUtilization("CpuScaling", CpuUtilizationScalingProps.builder() // Configura o escalonamento baseado na utilização da CPU
+                .targetUtilizationPercent(70) // Define a porcentagem alvo de utilização da CPU como 70%
+                .scaleInCooldown(Duration.minutes(3)) // Define o tempo de espera para escalar para baixo (desligar instâncias) como 3 minutos
+                .scaleOutCooldown(Duration.minutes(2)) // Define o tempo de espera para escalar para cima (ligar instâncias) como 2 minutos
+                .build()); // Constrói o objeto CpuUtilizationScalingProps com as configurações definidas
+
+        scalableTarget.scaleOnMemoryUtilization("MemoryScaling", MemoryUtilizationScalingProps.builder() // Configura o escalonamento baseado na utilização da memória
+                .targetUtilizationPercent(65) // Define a porcentagem alvo de utilização da memória como 65%
+                .scaleInCooldown(Duration.minutes(3)) // Define o tempo de espera para escalar para baixo (desligar instâncias) como 3 minutos
+                .scaleOutCooldown(Duration.minutes(2)) // Define o tempo de espera para escalar para cima (ligar instâncias) como 2 minutos
+                .build()); // Constrói o objeto MemoryUtilizationScalingProps com as configurações definidas
+
     }
+
 }
